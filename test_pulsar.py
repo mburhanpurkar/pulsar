@@ -44,20 +44,26 @@ class Pulsar_Test():
 
 class Pulsar():
     """Actual class"""
-    def __init__(self, e, Porb, anx, bny, P, t0, phi0):
+    def __init__(self, e, Porb, a, b, nx, ny, P, t0, phi0):
         self.e = e
         self.Porb = Porb
-        self.anx = anx
-        self.bny = bny
+        self.a = a
+        self.b = b
+        self.nx = nx
+        self.ny = ny
+        self.anx = a * nx
+        self.bny = b * ny
         self.P = P
         self.t0 = t0
         self.phi0 = phi0
 
-    def f(self, E, tobs):
-        return self.Porb / (2 * math.pi) * (E - self.e * math.sin(E)) - self.anx * \
-            (math.cos(E) - self.e) - self.bny * math.sin(E) + self.t0 - tobs
+    def numeric_E(self, E, tobs):
+        """Solve for E numerically"""
+        t_pulsar = self.Porb / (2 * math.pi) * (E - self.e * math.sin(E))
+        return t_pulsar - self.anx * (math.cos(E) - self.e) - self.bny * math.sin(E) + self.t0 - tobs
 
     def plot(self, tobs):
+        """Just for visualization -- plot E against the function that defines it"""
         E_sample = np.arange(0, 2 * math.pi, 0.01)
         f = np.zeros(E_sample.shape)
         for i, E in enumerate(E_sample):
@@ -67,19 +73,36 @@ class Pulsar():
         plt.ylabel('function we want to find the root of')
         plt.show()
 
-    def eval(self, tobs):
-        E = fsolve(self.f, math.pi, args=(tobs))
+    def get_phi(self, tobs):
+        """Gets the phase model for a particular tobs"""
+        # First, generate E from tobs
+        E = fsolve(self.numeric_E, math.pi, args=(tobs))
+        # Then, solve for t using the pulsar time equation
         t = self.Porb / (2 * math.pi) * (E - self.e * math.sin(E))
+        # Finally use t/P + phi0 to get the phase
         return t / self.P + self.phi0
 
+    def test_newtonian(self):
+        """Compare the outputs of the pulsar and test pulsar classes"""
+        # Create a pulsar test object
+        tpulsar = Pulsar_Test(a=self.a, b=self.b, Porb=self.Porb, nx=self.nx, ny=self.ny, P=self.P, t0=self.t0, phi0=self.phi0)
+        # Generate a table of tobs and phi values
+        tobs, phi = tpulsar.generate(0.5, 4, 0.1)
+        # Try generating phi values using the test pulse's tobs
+        gen_phi = np.zeros(tobs.shape)
+        for i, t in enumerate(tobs):
+            gen_phi[i] = self.get_phi(t)
+        # Print everything for comparison
+        for t, p, gen_p in zip(tobs, phi, gen_phi):
+            print t, abs(p - gen_p)
 
 # Prepare all the parameters for both models
 # I assume it is not good that the units here aren't consistent, but
 # I guess it works for the purposes of this test :)
-a = 2.152813         # semimajor axis (lt s)
 e = 0.070560
-b = math.sqrt(a**2 * (1 - e**2))
 Porb = 2.35769683    # orbital period (days)
+a = 2.152813         # semimajor axis (lt s)
+b = math.sqrt(a**2 * (1 - e**2))
 nx = math.sqrt(2)
 ny = math.sqrt(2)
 P = 311.49341784442  # pulse frequency (Hz)
@@ -88,20 +111,5 @@ phi0 = 0
 anx = a * nx
 bny = b * ny
 
-# Create a pulsar test object
-tpulsar = Pulsar_Test(a=a, b=b, Porb=Porb, nx=nx, ny=ny, P=P, t0=t0, phi0=phi0)
-
-# Generate a table of tobs and phi values
-tobs, phi = tpulsar.generate(0.5, 4, 0.1)
-
-# Make a proper pulsar
-pulsar = Pulsar(e=e, Porb=Porb, anx=anx, bny=bny, P=P, t0=t0, phi0=phi0)
-
-# Try generating phi values using the test pulse's tobs
-gen_phi = np.zeros(tobs.shape)
-for i, t in enumerate(tobs):
-    gen_phi[i] = pulsar.eval(t)
-
-# Print everything for comparison
-for t, p, gen_p in zip(tobs, phi, gen_phi):
-    print t, abs(p - gen_p)
+pulsar = Pulsar(e, Porb, a, b, nx, ny, P, t0, phi0)
+pulsar.test_newtonian()
