@@ -62,6 +62,9 @@ class Pulsar():
         t_pulsar = self.Porb / (2 * math.pi) * (E - self.e * math.sin(E))
         return t_pulsar - self.anx * (math.cos(E) - self.e) - self.bny * math.sin(E) + self.t0 - tobs
 
+    def rel_correction(self):
+        return -self.a**2 * math.pi / self.Porb * (E + e * math.sin(E))
+
     def plot(self, tobs):
         """Just for visualization -- plot E against the function that defines it"""
         E_sample = np.arange(0, 2 * math.pi, 0.01)
@@ -82,12 +85,37 @@ class Pulsar():
         # Finally use t/P + phi0 to get the phase
         return t / self.P + self.phi0
 
+    def get_rel_phi(self, tobs):
+        """Gets the phase model for a particular tobs, including relativistic correction"""
+        # First, generate E from tobs
+        E = fsolve(self.numeric_E, math.pi, args=(tobs))
+        # Then, solve for t using the pulsar time equation
+        t = self.Porb / (2 * math.pi) * (E - self.e * math.sin(E)) + self.rel_correction
+        # Finally use t/P + phi0 to get the phase
+        return t / self.P + self.phi0
+
+    def delta(self, n):
+        """Defines the function to be minimized for the test_relativistic method:
+        the square of the difference between the non-relativistic phi and the
+        relativistic phi, calculated over n subintervals"""
+        # Between t0 and today (Jun 11, 2017)
+        delta = 0
+        tobs = np.linspace(self.t0, 2457915, n)
+        for i in xrange(n):
+            delta += (self.get_phi(tobs[i]) - self.get_rel_phi(tobs[i]))**2
+        return delta
+
+    def test_relativistic(self):
+        """Hello"""
+        
+
     def test_newtonian(self):
         """Compare the outputs of the pulsar and test pulsar classes"""
         # Create a pulsar test object
         tpulsar = Pulsar_Test(a=self.a, b=self.b, Porb=self.Porb, nx=self.nx, ny=self.ny, P=self.P, t0=self.t0, phi0=self.phi0)
         # Generate a table of tobs and phi values
         tobs, phi = tpulsar.generate(0.5, 4, 0.1)
+        print tobs
         # Try generating phi values using the test pulse's tobs
         gen_phi = np.zeros(tobs.shape)
         for i, t in enumerate(tobs):
