@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from scipy.optimize import fsolve
+from scipy.optimize impor minimize
 import matplotlib.pyplot as plt
 import math
 import numpy as np
@@ -94,35 +95,77 @@ class Pulsar():
         # Finally use t/P + phi0 to get the phase
         return t / self.P + self.phi0
 
-    def delta(self, n):
-        """Defines the function to be minimized for the test_relativistic method:
-        the square of the difference between the non-relativistic phi and the
-        relativistic phi, calculated over n subintervals"""
-        # Between t0 and today (Jun 11, 2017)
-        delta = 0
-        tobs = np.linspace(self.t0, 2457915, n)
-        for i in xrange(n):
-            delta += (self.get_phi(tobs[i]) - self.get_rel_phi(tobs[i]))**2
-        return delta
 
-    def test_relativistic(self):
-        """Hello"""
-        
+################################################################################
 
-    def test_newtonian(self):
-        """Compare the outputs of the pulsar and test pulsar classes"""
-        # Create a pulsar test object
-        tpulsar = Pulsar_Test(a=self.a, b=self.b, Porb=self.Porb, nx=self.nx, ny=self.ny, P=self.P, t0=self.t0, phi0=self.phi0)
-        # Generate a table of tobs and phi values
-        tobs, phi = tpulsar.generate(0.5, 4, 0.1)
-        print tobs
-        # Try generating phi values using the test pulse's tobs
-        gen_phi = np.zeros(tobs.shape)
-        for i, t in enumerate(tobs):
-            gen_phi[i] = self.get_phi(t)
-        # Print everything for comparison
-        for t, p, gen_p in zip(tobs, phi, gen_phi):
-            print t, abs(p - gen_p)
+
+def newtonian(tobs, e, Porb, a, b, nx, ny, P, t0, phi0):
+    # The lambda function is equivalent to the numeric_E function in the class
+    # This gets E from tobs
+    g = lambda E: Porb / (2 * math.pi) * (E - e * math.sin(E)) - a*nx * (math.cos(E) - e) - b*ny * math.sin(E) + t0 - tobs
+
+    # Then from E, we return phi (this next bit is the equivalent of the get_phi method)
+    E = fsolve(g, math.pi, args=(tobs))
+
+    # Then, solve for t using the pulsar time equation
+    t = Porb / (2 * math.pi) * (E - e * math.sin(E))
+
+    # Finally use t/P + phi0 to get the phase
+    return t / P + phi0
+
+
+def delta(e, Porb, a, b, nx, ny, P, t0, phi0, n=1000):
+    """Defines the function to be minimized for the test_relativistic method:
+    the square of the difference between the non-relativistic phi and the
+    relativistic phi, calculated over n subintervals"""
+    # first, we need to create a pulsar object that will use the relativistic 
+    # description to get its phase model
+
+    # this will be constructed using the global variables defining parameters
+    pulsarR = Pulsar(e, Porb, a, b, nx, ny, P, t0, phi0)
+
+    # to define the phase model for the non-relativistic pulsar, we will use 
+    # our class-independent function because we can't initialize the pulsar
+    # with values
+    
+    # now, we will iterate over a range of tobs values and take a sum
+    delta = 0 
+    # Between t0 and Jun 11, 2017
+    tobs = np.linspace(self.t0, 2457915, n)
+    for i in xrange(n):
+        delta += (pulsarR.get_rel_phi(tobs[i]) - newtonian(tobs[i], e, Porb, a, b, nx, ny, P, t0, phi0))**2
+        # note that all of the annoying parameters in the function
+        # definition are so the minimizer knows what's up for the 
+        # fcn function
+    return delta
+
+
+def test_rel_degeneracy():
+    """Degeneracy test for relativistic model"""
+    sol = minimize(delta)
+    if sol.success:
+        print "The minimization was successfully completed!"
+        print "The result array is as follows:"
+        print sol.x
+    else:
+        print "The minimizer was not successful."
+    pass
+
+
+def test_newtonian(pulsar):
+    """Compare the outputs of the pulsar and test pulsar classes"""
+    # Create a pulsar test object
+    tpulsar = Pulsar_Test(a=pular.a, b=pulsar.b, Porb=pulsar.Porb, nx=pulsar.nx, ny=pulsar.ny, P=pulsar.P, t0=pulsar.t0, phi0=pulsar.phi0)
+    # Generate a table of tobs and phi values
+    tobs, phi = tpulsar.generate(0.5, 4, 0.1)
+    # Try generating phi values using the test pulse's tobs
+    gen_phi = np.zeros(tobs.shape)
+    for i, t in enumerate(tobs):
+        gen_phi[i] = pulsar.get_phi(t)
+    # Print everything for comparison
+    for t, p, gen_p in zip(tobs, phi, gen_phi):
+        print t, abs(p - gen_p)
+
 
 # Prepare all the parameters for both models
 # I assume it is not good that the units here aren't consistent, but
