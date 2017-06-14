@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 from scipy.optimize import fsolve
-from scipy.optimize impor minimize
+from scipy.optimize import minimize
 import matplotlib.pyplot as plt
 import math
 import numpy as np
@@ -63,7 +63,7 @@ class Pulsar():
         t_pulsar = self.Porb / (2 * math.pi) * (E - self.e * math.sin(E))
         return t_pulsar - self.anx * (math.cos(E) - self.e) - self.bny * math.sin(E) + self.t0 - tobs
 
-    def rel_correction(self):
+    def rel_correction(self, E):
         return -self.a**2 * math.pi / self.Porb * (E + e * math.sin(E))
 
     def plot(self, tobs):
@@ -91,12 +91,28 @@ class Pulsar():
         # First, generate E from tobs
         E = fsolve(self.numeric_E, math.pi, args=(tobs))
         # Then, solve for t using the pulsar time equation
-        t = self.Porb / (2 * math.pi) * (E - self.e * math.sin(E)) + self.rel_correction
+        t = self.Porb / (2 * math.pi) * (E - self.e * math.sin(E)) + self.rel_correction(E)
         # Finally use t/P + phi0 to get the phase
         return t / self.P + self.phi0
 
 
 ################################################################################
+
+
+# Prepare all the parameters for both models
+# I assume it is not good that the units here aren't consistent, but
+# I guess it works for the purposes of this test :)
+e = 0.070560
+Porb = 2.35769683    # orbital period (days)
+a = 2.152813         # semimajor axis (lt s)
+b = math.sqrt(a**2 * (1 - e**2))
+nx = math.sqrt(2)
+ny = math.sqrt(2)
+P = 311.49341784442  # pulse frequency (Hz)
+t0 = 51602.18629     # epoch of periastron (MJD)
+phi0 = 0
+anx = a * nx
+bny = b * ny
 
 
 def newtonian(tobs, e, Porb, a, b, nx, ny, P, t0, phi0):
@@ -114,7 +130,7 @@ def newtonian(tobs, e, Porb, a, b, nx, ny, P, t0, phi0):
     return t / P + phi0
 
 
-def delta(e, Porb, a, b, nx, ny, P, t0, phi0, n=1000):
+def delta(e=e, Porb=Porb, a=a, b=b, nx=nx, ny=ny, P=P, t0=t0, phi0=phi0, n=1000):
     """Defines the function to be minimized for the test_relativistic method:
     the square of the difference between the non-relativistic phi and the
     relativistic phi, calculated over n subintervals"""
@@ -131,7 +147,7 @@ def delta(e, Porb, a, b, nx, ny, P, t0, phi0, n=1000):
     # now, we will iterate over a range of tobs values and take a sum
     delta = 0 
     # Between t0 and Jun 11, 2017
-    tobs = np.linspace(self.t0, 2457915, n)
+    tobs = np.linspace(t0, 2457915, n)
     for i in xrange(n):
         delta += (pulsarR.get_rel_phi(tobs[i]) - newtonian(tobs[i], e, Porb, a, b, nx, ny, P, t0, phi0))**2
         # note that all of the annoying parameters in the function
@@ -142,7 +158,7 @@ def delta(e, Porb, a, b, nx, ny, P, t0, phi0, n=1000):
 
 def test_rel_degeneracy():
     """Degeneracy test for relativistic model"""
-    sol = minimize(delta)
+    sol = minimize(delta, 1)
     if sol.success:
         print "The minimization was successfully completed!"
         print "The result array is as follows:"
@@ -167,20 +183,6 @@ def test_newtonian(pulsar):
         print t, abs(p - gen_p)
 
 
-# Prepare all the parameters for both models
-# I assume it is not good that the units here aren't consistent, but
-# I guess it works for the purposes of this test :)
-e = 0.070560
-Porb = 2.35769683    # orbital period (days)
-a = 2.152813         # semimajor axis (lt s)
-b = math.sqrt(a**2 * (1 - e**2))
-nx = math.sqrt(2)
-ny = math.sqrt(2)
-P = 311.49341784442  # pulse frequency (Hz)
-t0 = 51602.18629     # epoch of periastron (MJD)
-phi0 = 0
-anx = a * nx
-bny = b * ny
-
-pulsar = Pulsar(e, Porb, a, b, nx, ny, P, t0, phi0)
-pulsar.test_newtonian()
+ #pulsar = Pulsar(e, Porb, a, b, nx, ny, P, t0, phi0)
+#pulsar.test_newtonian()
+test_rel_degeneracy()
