@@ -137,57 +137,36 @@ test_newtonian(pulsar)
 
 # A degeneracy test for the relativistic model (DOES NOT YET WORK)
 def newtonian(tobs, e, Porb, a, b, nx, ny, P, t0, phi0):
-    # The lambda function is equivalent to the numeric_E function in the class
-    # This gets E from tobs
+    """I have defined a method on its own here to replicate the work of the 
+    newtonian class, since we will not have values to initialize a pulsar object with."""
+    # The lambda function is equivalent to the numeric_E function in the class 
     g = lambda E: Porb / (2 * math.pi) * (E - e * math.sin(E)) - a*nx * (math.cos(E) - e) - b*ny * math.sin(E) + t0 - tobs
-
     # Then from E, we return phi (this next bit is the equivalent of the get_phi method)
     E = fsolve(g, math.pi)
-
     # Then, solve for t using the pulsar time equation
     t = Porb / (2 * math.pi) * (E - e * math.sin(E))
-
     # Finally use t/P + phi0 to get the phase
     return t / P + phi0
 
+# This will represent our relativistic pulsar (we are optimizing the parameters
+# for the newtonian model -- the relativistic pulsar phase model will be calculated 
+# as normal so we can still use the class)
 pulsarR = Pulsar(e, Porb, a, b, nx, ny, P, t0, phi0)
 
-def delta(e=e, Porb=Porb, a=a, b=b, nx=nx, ny=ny, P=P, t0=t0, phi0=phi0, n=1000):
+def delta(e=e, Porb=Porb, a=a, b=b, nx=nx, ny=ny, P=P, t0=t0, phi0=phi0, ni=1000, nd=10):
     """Defines the function to be minimized for the test_relativistic method:
     the square of the difference between the non-relativistic phi and the
-    relativistic phi, calculated over n subintervals"""
-    # first, we need to create a pulsar object that will use the relativistic 
-    # description to get its phase model
-
-    # this will be constructed using the global variables defining parameters
-
-
-    # to define the phase model for the non-relativistic pulsar, we will use 
-    # our class-independent function because we can't initialize the pulsar
-    # with values
-    
-    # now, we will iterate over a range of tobs values and take a sum
+    relativistic phi, calculated over ni subintervals"""
     delta = 0 
-    # Between t0 and Jun 11, 2017
-    tobs = np.linspace(t0, t0+2, n)
-    #tobs = np.linspace(t0, 2457915, n)
-    for i in xrange(n):
+    tobs = np.linspace(t0, t0 + nd, ni)
+    for i in xrange(ni):
         delta += (pulsarR.get_rel_phi(tobs[i]) - newtonian(tobs[i], e, Porb, a, b, nx, ny, P, t0, phi0))**2
-        # note that all of the annoying parameters in the function
-        # definition are so the minimizer knows what's up for the 
-        # fcn function
     return delta
 
 
 def test_rel_degeneracy():
     """Degeneracy test for relativistic model"""
     sol = minimize(delta, 51602.18629)
-    if sol.success:
-        print "The minimization was successfully completed!"
-        print "The result array is as follows:"
-        print sol.x
-    else:
-        print "The minimizer was not successful."
-    pass
-
+    print sol
+    
 test_rel_degeneracy()
