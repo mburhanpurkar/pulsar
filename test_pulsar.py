@@ -149,7 +149,8 @@ def newtonian(tobs, e, Porb, a, b, nx, ny, P, t0, phi0):
     return t / P + phi0
 
 
-def delta(e=e, Porb=Porb, a=a, b=b, nx=nx, ny=ny, P=P, t0=t0, phi0=phi0, ni=1000, nd=10):
+def delta(args, ni=100, nd=10):
+    e, Porb, a, b, nx, ny, P, t0, phi0 = args
     """Defines the function to be minimized for the test_relativistic method:
     the square of the difference between the non-relativistic phi and the
     relativistic phi, calculated over ni subintervals"""
@@ -159,13 +160,15 @@ def delta(e=e, Porb=Porb, a=a, b=b, nx=nx, ny=ny, P=P, t0=t0, phi0=phi0, ni=1000
     # relativistic pulsar (we are optimizing the parameters for the newtonian model --
     # the relativistic pulsar phase model will be calculated as normal so we can still use the class)
     for i in xrange(ni):
-        delta += (pulsar.get_rel_phi(tobs[i]) - newtonian(tobs[i], e, Porb, a, b, nx, ny, P, t0, phi0))**2
+        delta += (pulsar.get_phi(tobs[i]) - newtonian(tobs[i], e, Porb, a, b, nx, ny, P, t0, phi0))**2
+        # delta += (pulsar.get_rel_phi(tobs[i]) - newtonian(tobs[i], e, Porb, a, b, nx, ny, P, t0, phi0))**2
+    print delta
     return delta
 
 
 def test_rel_degeneracy():
     """Degeneracy test for relativistic model"""
-    sol = minimize(delta, 51602.18629)
+    sol = minimize(delta, [e, Porb, a, b, nx, ny, P, t0, phi0])
     print sol
 
 
